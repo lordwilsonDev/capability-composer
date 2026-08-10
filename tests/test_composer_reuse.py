@@ -41,6 +41,16 @@ REQUIREMENTS = [
         "hubspot.deal.write",
         id="hubspot-deal-pipeline",
     ),
+    pytest.param(
+        "route qualified ghl leads into hubspot deals",
+        "skill:ghl-hubspot-router",
+        {"ghl.contact.read", "ghl.contact.write",
+         "llm.intent", "llm.qualify",
+         "hubspot.contact.read", "hubspot.contact.write",
+         "hubspot.deal.read", "hubspot.deal.write"},
+        "hubspot.deal.write",
+        id="ghl-hubspot-router",
+    ),
 ]
 
 
@@ -149,15 +159,18 @@ def test_undecomposable_requirement_fails_the_gate(tmp_registry, capsys):
     assert "GATE FAILED" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("shared_primitive", ["llm.qualify", "llm.intent"])
 def test_shared_model_primitive_gap_fails_both_capabilities(tmp_path, monkeypatch,
-                                                            capsys):
-    """The shared-node claim, machine-checked: removing the model primitive
-    (llm.qualify) must open the SAME gap for EVERY capability that depends on
-    it — the graph's shared node is not duplicated per skill."""
+                                                            capsys,
+                                                            shared_primitive):
+    """The shared-node claim, machine-checked for BOTH model primitives:
+    removing a shared primitive (llm.qualify or llm.intent) must open the SAME
+    gap for EVERY capability that depends on it — the graph's shared node is
+    not duplicated per skill."""
     reg = tmp_path / "registry.json"
     seed = {"schema_version": "1.0",
             "capabilities": [c for c in _pristine_seed()
-                              if c["id"] != "llm.qualify"]}
+                              if c["id"] != shared_primitive]}
     reg.write_text(json.dumps(seed, indent=2) + "\n", encoding="utf-8")
     monkeypatch.setattr(composer, "find_for",
                         lambda req: registry_tool.find_for(req, reg))
@@ -167,5 +180,5 @@ def test_shared_model_primitive_gap_fails_both_capabilities(tmp_path, monkeypatc
         assert composer.run(requirement) == 1, f"{skill_id}: gap must abort"
         out = capsys.readouterr().out
         assert "GAP (Law 3)" in out
-        assert "llm.qualify" in out
+        assert shared_primitive in out
         assert registry_tool.lookup(skill_id, reg) is None

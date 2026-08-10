@@ -86,6 +86,16 @@ _FIXTURE_CONTACTS: list[dict[str, Any]] = [
         "tags": ["existing-client"],
         "customFields": {},
     },
+    {
+        "id": "c_linus",
+        "firstName": "Linus",
+        "lastName": "Torvalds",
+        "email": "linus@example.com",
+        "phone": "+15550001004",
+        "locationId": "loc-demo",
+        "tags": ["qualified"],
+        "customFields": {},
+    },
 ]
 
 

@@ -18,7 +18,7 @@ jobs:
       - name: deps
         run: pip install --quiet pytest ruff
 
-      - name: tests (59 — 2 connectors + 2 pipelines + reuse)
+      - name: tests (2 connectors + 2 pipelines + cross-connector router + reuse)
         run: python -m pytest tests/ primitives/ registry/ -q
 
       - name: ruff (E9,F,I)
@@ -29,6 +29,9 @@ jobs:
 
       - name: sandbox verify — HubSpot pipeline (10 scenarios, zero spend)
         run: python skills/hubspot_deal_pipeline/pipeline.py
+
+      - name: sandbox verify — GHL→HubSpot router (8 scenarios, zero spend)
+        run: python skills/ghl_hubspot_router/router.py
 
       - name: composer loop — GHL run #1 composes + registers
         run: |
@@ -57,6 +60,23 @@ jobs:
       - name: composer loop — HubSpot run #2 must REUSE, never rebuild
         run: |
           OUT=$(python composer.py run "create a hubspot deal pipeline agent")
+          echo "$OUT"
+          echo "$OUT" | grep -q "REUSE (Law 1)"
+          if echo "$OUT" | grep -q "\[7/7\]"; then
+            echo "FAIL: second request re-ran the build path"
+            exit 1
+          fi
+
+      - name: composer loop — Router run #1 composes + registers
+        run: |
+          OUT=$(python composer.py run "route qualified ghl leads into hubspot deals")
+          echo "$OUT"
+          echo "$OUT" | grep -q "\[7/7\] register"
+          echo "$OUT" | grep -q "status=VERIFIED"
+
+      - name: composer loop — Router run #2 must REUSE, never rebuild
+        run: |
+          OUT=$(python composer.py run "route qualified ghl leads into hubspot deals")
           echo "$OUT"
           echo "$OUT" | grep -q "REUSE (Law 1)"
           if echo "$OUT" | grep -q "\[7/7\]"; then

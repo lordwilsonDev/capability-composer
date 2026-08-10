@@ -13,7 +13,7 @@ from primitives.ghl.ghl_client import GhlError, SandboxBackend
 
 def test_sandbox_reads_are_deterministic():
     sb = SandboxBackend()
-    assert len(sb.search_contacts()) == 2
+    assert len(sb.search_contacts()) == 3
     assert len(sb.list_calendars()) == 2
     assert sb.get_contact("c_ada")["email"] == "ada@example.com"
     # deterministic: same calls, same results, no hidden state
@@ -54,7 +54,7 @@ def test_failure_injection_calendar_unavailable():
     with pytest.raises(GhlError, match="unavailable"):
         sb.book_appointment({"calendarId": "cal-sales", "contactId": "c_ada", "startTime": "x"})
     # reads still work during a partial outage
-    assert len(sb.search_contacts()) == 2
+    assert len(sb.search_contacts()) == 3
 
 
 def test_permission_log_records_every_call():

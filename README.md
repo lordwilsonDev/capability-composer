@@ -22,16 +22,18 @@ already exists, compose it. If it doesn't, create only the missing primitive.
 5. **Every discovery becomes knowledge** — the promoted skill is registered
    (status `VERIFIED`); the identical request is then served by the catalog.
 
-## The §21 demo (one command, two providers)
+## The §21 demo (one command, three capabilities — including a multi-provider edge)
 
 ```bash
-# first request — compose + verify + register (zero spend, no network)
+# first requests — compose + verify + register (zero spend, no network)
 python composer.py run "create a ghl lead qualification agent"
 python composer.py run "create a hubspot deal pipeline agent"
+python composer.py run "route qualified ghl leads into hubspot deals"
 
 # second requests — the compounding primitive: REUSE, no rebuild
 python composer.py run "create a ghl lead qualification agent"
 python composer.py run "create a hubspot deal pipeline agent"
+python composer.py run "route qualified ghl leads into hubspot deals"
 ```
 
 ## Layout
@@ -43,9 +45,10 @@ python composer.py run "create a hubspot deal pipeline agent"
 | `primitives/ghl/` | the GHL connector — `SandboxBackend` (verified) + `LiveBackend` (opt-in, `GHL_API_KEY`) |
 | `primitives/hubspot/` | the HubSpot CRM connector — same contract, `HUBSPOT_API_KEY` live |
 | `primitives/stub_model/` | the SHARED model primitive (`llm.intent` + `llm.qualify`) both skills depend on — the graph's shared node |
-| `skills/gohighlevel_lead_qualifier/` | composed skill #1 — `qualifier.py` + `SKILL.md` |
+| `skills/gohighlevel_lead_qualifier/` | composed skill #1 — `qualifier.py` + `SKILL.md` (produces qualified GHL leads) |
 | `skills/hubspot_deal_pipeline/` | composed skill #2 — `pipeline.py` + `SKILL.md` |
-| `tests/` | §11 adversarial sandbox scenarios + the fundamental-primitive reuse test, parametrized over BOTH capabilities |
+| `skills/ghl_hubspot_router/` | composed skill #3 — `router.py` + `SKILL.md`: **cross-connector** — routes skill #1's qualified leads into HubSpot deals (multi-provider edges, input = skill #1's output) |
+| `tests/` | §11 adversarial sandbox scenarios + the fundamental-primitive reuse test, parametrized over ALL THREE capabilities |
 
 ## Honesty notes
 

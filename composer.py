@@ -33,6 +33,9 @@ from registry.registry_tool import (  # type: ignore[import-not-found]
     load_registry,
     register_capability,
 )
+from skills.ghl_hubspot_router.router import (  # type: ignore[import-not-found]
+    verify_sandbox as verify_ghl_hubspot_router,
+)
 from skills.gohighlevel_lead_qualifier.qualifier import (  # type: ignore[import-not-found]
     verify_sandbox as verify_ghl_qualifier,
 )
@@ -49,6 +52,33 @@ ROOT = Path(__file__).resolve().parent
 # A requirement matches a decomposer when EVERY significant keyword appears.
 # Each decomposer expands into the exact capability set the composition needs.
 DECOMPOSERS: list[dict[str, Any]] = [
+    # ORDER = SPECIFICITY: a cross-connector spec requires keywords from TWO
+    # providers, so it is checked before the single-provider specs (all
+    # keywords must be present for a match, so the more specific gate wins).
+    {
+        "name": "ghl-hubspot-router",
+        "keywords": ["ghl", "hubspot"],
+        "skill_id": "skill:ghl-hubspot-router",
+        "skill_name": "ghl-hubspot-router",
+        "version": "1.0",
+        "purpose": "Route qualified GHL leads into HubSpot deals — match or create the HubSpot contact, create or advance the deal, confirm the sync back in GHL.",
+        "path": "skills/ghl_hubspot_router",
+        "inputs": ["leads"],
+        "dependencies": ["GoHighLevel", "HubSpot", "local_model"],
+        "permissions": {"requires": [
+            "contact.read", "contact.write",  # GHL
+            "crm.contacts.read", "crm.contacts.write",  # HubSpot
+            "crm.deals.read", "crm.deals.write",  # HubSpot
+        ]},
+        "workflow": ["receive_leads", "assess", "verify_in_ghl", "route_to_hubspot", "confirm_in_ghl"],
+        "verification": ["sandbox scenarios", "adversarial inputs", "merged permission log"],
+        "needs": [
+            "ghl.contact.read", "ghl.contact.write",
+            "llm.intent", "llm.qualify",
+            "hubspot.contact.read", "hubspot.contact.write",
+            "hubspot.deal.read", "hubspot.deal.write",
+        ],
+    },
     {
         "name": "ghl-lead-qualifier",
         "keywords": ["ghl", "lead"],
@@ -94,6 +124,7 @@ DECOMPOSERS: list[dict[str, Any]] = [
 VERIFIERS: dict[str, Callable[[], list[str]]] = {
     "gohighlevel-lead-qualifier": verify_ghl_qualifier,
     "hubspot-deal-pipeline": verify_hubspot_pipeline,
+    "ghl-hubspot-router": verify_ghl_hubspot_router,
 }
 
 
