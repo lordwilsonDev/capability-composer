@@ -51,6 +51,9 @@ from primitives.ghl.ghl_client import (
 from primitives.hubspot.hubspot_client import (
     LiveBackend as HubspotLiveBackend,  # type: ignore[import-not-found]
 )
+from primitives.slack.slack_client import (
+    LiveBackend as SlackLiveBackend,  # type: ignore[import-not-found]
+)
 
 EVIDENCE_DIR = _REPO_ROOT / "evidence" / "live"
 TOOLCHAIN = "capability-composer live-probe v1.0"
@@ -72,6 +75,14 @@ PROVIDERS: dict[str, dict[str, Any]] = {
         "endpoint": "POST /crm/v3/objects/contacts/search — list 1 contact",
         "subject": "hubspot.live.contacts.search",
         "claim": "hubspot.live.reads_work",
+    },
+    "slack": {
+        "key_env": "SLACK_API_KEY",
+        "build": lambda: SlackLiveBackend(),
+        "call": lambda b: b.list_channels(limit=1),
+        "endpoint": "GET /api/conversations.list — list 1 channel",
+        "subject": "slack.live.channels.list",
+        "claim": "slack.live.reads_work",
     },
 }
 

@@ -104,12 +104,12 @@ def test_evidence_id_distinct_across_probes(tmp_path, monkeypatch):
 
 
 def test_main_without_keys_is_inert(tmp_path, monkeypatch, capsys):
-    monkeypatch.delenv("GHL_API_KEY", raising=False)
-    monkeypatch.delenv("HUBSPOT_API_KEY", raising=False)
+    for var in ("GHL_API_KEY", "HUBSPOT_API_KEY", "SLACK_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(probe, "EVIDENCE_DIR", tmp_path)
     assert main([]) == 0
     out = capsys.readouterr().out
-    assert out.count("[SKIP]") == 2
+    assert out.count("[SKIP]") == 3
     assert "inert" in out
     assert list(tmp_path.iterdir()) == [], "no keys → no evidence, nothing attempted"
 
@@ -117,10 +117,11 @@ def test_main_without_keys_is_inert(tmp_path, monkeypatch, capsys):
 def test_main_dry_run_never_contacts_network_or_disk(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("GHL_API_KEY", "test-key")
     monkeypatch.setenv("HUBSPOT_API_KEY", "test-key")
+    monkeypatch.setenv("SLACK_API_KEY", "test-key")
     monkeypatch.setattr(probe, "EVIDENCE_DIR", tmp_path)
     assert main(["--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert out.count("[DRY]") == 2
+    assert out.count("[DRY]") == 3
     assert "would call" in out
     assert list(tmp_path.iterdir()) == [], "dry-run writes nothing"
 
@@ -132,6 +133,15 @@ def test_main_provider_selection(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "[DRY]  ghl" in out
     assert "hubspot" not in out
+
+
+def test_slack_provider_entry_is_read_only():
+    """The third provider is registered and its probe call is read-only."""
+    spec = PROVIDERS["slack"]
+    assert spec["key_env"] == "SLACK_API_KEY"
+    assert "conversations.list" in spec["endpoint"]
+    assert "postMessage" not in spec["endpoint"], "probe must never write"
+    assert spec["claim"] == "slack.live.reads_work"
 
 
 def test_main_unknown_provider_exits_2(tmp_path, monkeypatch, capsys):

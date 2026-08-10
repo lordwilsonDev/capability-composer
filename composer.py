@@ -42,6 +42,9 @@ from skills.gohighlevel_lead_qualifier.qualifier import (  # type: ignore[import
 from skills.hubspot_deal_pipeline.pipeline import (  # type: ignore[import-not-found]
     verify_sandbox as verify_hubspot_pipeline,
 )
+from skills.slack_triage.triage import (  # type: ignore[import-not-found]
+    verify_sandbox as verify_slack_triage,
+)
 
 ROOT = Path(__file__).resolve().parent
 
@@ -98,6 +101,24 @@ DECOMPOSERS: list[dict[str, Any]] = [
         ],
     },
     {
+        "name": "slack-triage",
+        "keywords": ["slack"],
+        "skill_id": "skill:slack-triage",
+        "skill_name": "slack-triage",
+        "version": "1.0",
+        "purpose": "Triage Slack messages — detect intent via the shared model, reply with a canned answer, escalate support, quarantine spam; degrade honestly on Slack failures.",
+        "path": "skills/slack_triage",
+        "inputs": ["message"],
+        "dependencies": ["Slack", "local_model"],
+        "permissions": {"requires": ["channels.read", "users.read", "message.write"]},
+        "workflow": ["verify_channel", "resolve_user", "detect_intent", "decide", "reply_or_quarantine"],
+        "verification": ["sandbox scenarios", "adversarial inputs", "permission log"],
+        "needs": [
+            "slack.channel.read", "slack.user.read", "slack.message.write",
+            "llm.intent",
+        ],
+    },
+    {
         "name": "hubspot-deal-pipeline",
         "keywords": ["hubspot", "deal"],
         "skill_id": "skill:hubspot-deal-pipeline",
@@ -125,6 +146,7 @@ VERIFIERS: dict[str, Callable[[], list[str]]] = {
     "gohighlevel-lead-qualifier": verify_ghl_qualifier,
     "hubspot-deal-pipeline": verify_hubspot_pipeline,
     "ghl-hubspot-router": verify_ghl_hubspot_router,
+    "slack-triage": verify_slack_triage,
 }
 
 

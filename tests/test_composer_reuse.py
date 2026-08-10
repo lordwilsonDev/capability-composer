@@ -51,7 +51,25 @@ REQUIREMENTS = [
         "hubspot.deal.write",
         id="ghl-hubspot-router",
     ),
+    pytest.param(
+        "create a slack triage bot",
+        "skill:slack-triage",
+        {"slack.channel.read", "slack.user.read", "slack.message.write",
+         "llm.intent"},
+        "slack.message.write",
+        id="slack-triage",
+    ),
 ]
+
+# Requirements that depend on EACH model primitive — the shared-node claim.
+# slack-triage depends on llm.intent only, so a llm.qualify gap must NOT fail it.
+_MODEL_DEPENDENTS = {
+    "llm.intent": [p.values[0] for p in REQUIREMENTS],
+    "llm.qualify": [
+        p.values[0] for p in REQUIREMENTS
+        if "llm.qualify" in p.values[2]
+    ],
+}
 
 
 def _pristine_seed() -> list[dict]:
@@ -160,13 +178,13 @@ def test_undecomposable_requirement_fails_the_gate(tmp_registry, capsys):
 
 
 @pytest.mark.parametrize("shared_primitive", ["llm.qualify", "llm.intent"])
-def test_shared_model_primitive_gap_fails_both_capabilities(tmp_path, monkeypatch,
-                                                            capsys,
-                                                            shared_primitive):
+def test_shared_model_primitive_gap_fails_every_dependent_capability(
+        tmp_path, monkeypatch, capsys, shared_primitive):
     """The shared-node claim, machine-checked for BOTH model primitives:
-    removing a shared primitive (llm.qualify or llm.intent) must open the SAME
-    gap for EVERY capability that depends on it — the graph's shared node is
-    not duplicated per skill."""
+    removing a shared primitive must open the SAME gap for EVERY capability
+    that depends on it — and must NOT block capabilities that don't
+    (slack-triage needs llm.intent only). The graph's shared node is a node,
+    not a bundle."""
     reg = tmp_path / "registry.json"
     seed = {"schema_version": "1.0",
             "capabilities": [c for c in _pristine_seed()
@@ -177,6 +195,12 @@ def test_shared_model_primitive_gap_fails_both_capabilities(tmp_path, monkeypatc
     monkeypatch.setattr(composer, "register_capability",
                         lambda cap: registry_tool.register_capability(cap, reg))
     for requirement, skill_id in REQUIREMENT_PAIRS:
+        if requirement not in _MODEL_DEPENDENTS[shared_primitive]:
+            # does not depend on this node — compose must still succeed
+            assert composer.run(requirement) == 0, \
+                f"{skill_id}: independent of {shared_primitive} — must compose"
+            capsys.readouterr()
+            continue
         assert composer.run(requirement) == 1, f"{skill_id}: gap must abort"
         out = capsys.readouterr().out
         assert "GAP (Law 3)" in out

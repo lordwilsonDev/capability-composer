@@ -18,11 +18,11 @@ jobs:
       - name: deps
         run: pip install --quiet pytest ruff
 
-      - name: tests (2 connectors + 2 pipelines + cross-connector router + reuse)
-        run: python -m pytest tests/ primitives/ registry/ -q
+      - name: tests (3 connectors + 3 pipelines + cross-connector router + reuse + probe)
+        run: python -m pytest tests/ primitives/ registry/ scripts/ -q
 
       - name: ruff (E9,F,I)
-        run: python -m ruff check --select E9,F,I composer.py registry/ primitives/ skills/ tests/
+        run: python -m ruff check --select E9,F,I composer.py registry/ primitives/ skills/ tests/ scripts/
 
       - name: sandbox verify — GHL qualifier (10 scenarios, zero spend)
         run: python skills/gohighlevel_lead_qualifier/qualifier.py
@@ -32,6 +32,9 @@ jobs:
 
       - name: sandbox verify — GHL→HubSpot router (8 scenarios, zero spend)
         run: python skills/ghl_hubspot_router/router.py
+
+      - name: sandbox verify — Slack triage (8 scenarios, zero spend)
+        run: python skills/slack_triage/triage.py
 
       - name: composer loop — GHL run #1 composes + registers
         run: |
@@ -83,3 +86,24 @@ jobs:
             echo "FAIL: second request re-ran the build path"
             exit 1
           fi
+
+      - name: composer loop — Slack run #1 composes + registers
+        run: |
+          OUT=$(python composer.py run "create a slack triage bot")
+          echo "$OUT"
+          echo "$OUT" | grep -q "\[7/7\] register"
+          echo "$OUT" | grep -q "status=VERIFIED"
+
+      - name: composer loop — Slack run #2 must REUSE, never rebuild
+        run: |
+          OUT=$(python composer.py run "create a slack triage bot")
+          echo "$OUT"
+          echo "$OUT" | grep -q "REUSE (Law 1)"
+          if echo "$OUT" | grep -q "\[7/7\]"; then
+            echo "FAIL: second request re-ran the build path"
+            exit 1
+          fi
+
+      - name: live probe — inert without keys (never in CI with keys)
+        run: |
+          python scripts/live_probe.py

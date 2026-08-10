@@ -320,6 +320,100 @@
         "proven_by": "deterministic stub fixtures"
       },
       "composable": true
+    },
+    {
+      "id": "slack.channel.read",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "Slack",
+        "path": "primitives/slack"
+      },
+      "interface": {
+        "input": {
+          "channel_id": "string",
+          "limit": "number"
+        },
+        "output": [
+          "channel_id",
+          "name",
+          "is_member",
+          "messages"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "channels.read"
+        ]
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures (primitives/slack/test_slack_client.py)"
+      },
+      "composable": true
+    },
+    {
+      "id": "slack.message.write",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "Slack",
+        "path": "primitives/slack"
+      },
+      "interface": {
+        "input": {
+          "channel_id": "string",
+          "text": "string",
+          "thread_ts": "string"
+        },
+        "output": [
+          "ok",
+          "ts"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "message.write"
+        ]
+      },
+      "risk": "medium",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures + failure injection (outage, rate limit, not_in_channel)"
+      },
+      "composable": true
+    },
+    {
+      "id": "slack.user.read",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "Slack",
+        "path": "primitives/slack"
+      },
+      "interface": {
+        "input": {
+          "user_id": "string"
+        },
+        "output": [
+          "user_id",
+          "name",
+          "real_name",
+          "email"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "users.read"
+        ]
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures"
+      },
+      "composable": true
     }
   ]
 }
