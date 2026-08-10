@@ -33,7 +33,7 @@ jobs:
       - name: sandbox verify — GHL→HubSpot router (8 scenarios, zero spend)
         run: python skills/ghl_hubspot_router/router.py
 
-      - name: sandbox verify — Slack triage (8 scenarios, zero spend)
+      - name: sandbox verify — Slack triage (9 scenarios, zero spend)
         run: python skills/slack_triage/triage.py
 
       - name: composer loop — GHL run #1 composes + registers
