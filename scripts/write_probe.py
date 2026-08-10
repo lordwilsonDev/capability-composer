@@ -109,6 +109,23 @@ def _build_slack(key: str, channel: str) -> Any:
     return SlackLiveBackend(token=key)
 
 
+def _is_gone_error(exc: BaseException) -> bool:
+    """True when an error means the resource no longer exists — the SUCCESS
+    signal of the verify-gone leg.
+
+    The sandbox backends raise '<id> not found'. The live backends surface
+    gone differently per provider: HTTP 404 in the message ("GHL 404 on GET
+    /contacts/x", "HubSpot 404 on ..."), Slack's ok:false convention
+    (message_not_found / channel_not_found), and HubSpot's body text. All of
+    those mean the delete worked — matching only the literal "not found"
+    would mark a successful live cleanup as a FAIL.
+    """
+    text = str(exc).lower()
+    markers = ("not found", "not_found", "does not exist", "no longer exists",
+               "404")
+    return any(m in text for m in markers)
+
+
 def run_round_trip(provider: str, backend: Any, key: str) -> dict[str, Any]:
     """create -> get (read-back verify) -> delete -> get (verify gone).
 
@@ -146,10 +163,12 @@ def run_round_trip(provider: str, backend: Any, key: str) -> dict[str, Any]:
             backend.delete_contact(cid)
             try:
                 backend.get_contact(cid)
-                raise RuntimeError("cleanup failed: contact still fetchable after delete")
-            except Exception as exc:  # noqa: BLE001 — not-found IS the success
-                if "not found" not in str(exc):
+            except Exception as exc:  # noqa: BLE001 — gone is the success
+                if not _is_gone_error(exc):
                     raise RuntimeError(f"cleanup verify failed: {exc}") from exc
+            else:
+                raise RuntimeError("cleanup failed: contact still fetchable "
+                                   "after delete")
         return {
             "provider": provider,
             "result": "PASS",
@@ -376,6 +395,50 @@ def _run_self_test() -> int:
         rt_f = run_round_trip("ghl", _FakeContactBackend(fail_delete=True), "k")
         assert rt_f["result"] == "FAIL", rt_f
         assert rt_f["error"] and "delete" in rt_f["error"], rt_f
+
+        # LIVE-shape gone error (HTTP 404 in the message, not the literal
+        # 'not found') must count as a SUCCESSFUL cleanup — the live backends
+        # raise 'GHL 404 on GET /contacts/x'; matching only 'not found'
+        # would falsely FAIL a real-API round trip.
+        class _Live404Backend(_FakeContactBackend):
+            def get_contact(self, cid):
+                if cid not in self._records:
+                    raise RuntimeError(f"GHL 404 on GET /contacts/{cid}: {cid}")
+                return dict(self._records[cid])
+
+        rt_404 = run_round_trip("ghl", _Live404Backend(), "k")
+        assert rt_404["result"] == "PASS", rt_404
+        assert rt_404["error"] is None, rt_404
+
+        # HubSpot live shape: 'HubSpot 404 on GET /crm/v3/objects/contacts/x'.
+        class _Hub404Backend(_FakeContactBackend):
+            def get_contact(self, cid):
+                if cid not in self._records:
+                    raise RuntimeError(
+                        f"HubSpot 404 on GET /crm/v3/objects/contacts/{cid}: "
+                        f"{cid} did not exist")
+                return dict(self._records[cid])
+
+        rt_h404 = run_round_trip("hubspot", _Hub404Backend(), "k")
+        assert rt_h404["result"] == "PASS", rt_h404
+
+        # A NON-gone live error on the VERIFY-GONE get (500) still fails loud
+        # — never a false PASS. Read-back uses the first get; the 500 fires
+        # on the second get (after delete), so it must reach the cleanup leg.
+        class _ServerErrorBackend(_FakeContactBackend):
+            def __init__(self):
+                super().__init__()
+                self._gets = 0
+
+            def get_contact(self, cid):
+                self._gets += 1
+                if self._gets == 2:
+                    raise RuntimeError(f"GHL 500 on GET /contacts/{cid}: internal")
+                return super().get_contact(cid)
+
+        rt_500 = run_round_trip("ghl", _ServerErrorBackend(), "k")
+        assert rt_500["result"] == "FAIL", rt_500
+        assert "cleanup verify failed" in rt_500["error"], rt_500
 
         # Evidence polarity follows the result.
         path_ok = write_evidence("ghl", rt, "deadbeef", root)
