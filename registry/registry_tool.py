@@ -14,6 +14,7 @@ CLI:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -31,10 +32,12 @@ def load_registry(path: Path = REGISTRY) -> dict[str, Any]:
 
 
 def _text_of(cap: dict[str, Any]) -> str:
+    """The searchable text of a registry entry. Missing keys become "" —
+    never str(None), which would pollute matching text."""
     return " ".join(str(x) for x in (
-        cap.get("id"), cap.get("name"), cap.get("purpose"),
+        cap.get("id") or "", cap.get("name") or "", cap.get("purpose") or "",
         " ".join(cap.get("capabilities", [])),
-        cap.get("provider", {}).get("name", ""),
+        (cap.get("provider") or {}).get("name", ""),
     )).lower()
 
 
@@ -72,19 +75,27 @@ def lookup(capability_id: str, path: Path = REGISTRY) -> Optional[dict[str, Any]
     return None
 
 
+def _write_registry(registry: dict[str, Any], path: Path) -> None:
+    """Atomic write (tmp + os.replace) — a crash never truncates the registry."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def register_capability(capability: dict[str, Any], path: Path = REGISTRY) -> bool:
-    """Upsert by id — idempotent, never duplicates. Returns True when new."""
+    """Upsert by id — idempotent, never duplicates, atomic write. Returns True
+    when new."""
     if not isinstance(capability.get("id"), str) or not capability["id"]:
         raise ValueError("capability requires an id")
     registry = load_registry(path)
     for i, cap in enumerate(registry["capabilities"]):
         if cap.get("id") == capability["id"]:
             registry["capabilities"][i] = capability
-            path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+            _write_registry(registry, path)
             return False
     registry["capabilities"].append(capability)
     registry["capabilities"].sort(key=lambda c: c.get("id", ""))
-    path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+    _write_registry(registry, path)
     return True
 
 

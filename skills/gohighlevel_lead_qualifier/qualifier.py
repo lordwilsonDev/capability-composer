@@ -245,11 +245,18 @@ def _backend_for(name: str) -> SandboxBackend:
     return SandboxBackend()
 
 
+def run_scenarios() -> list[tuple[str, Outcome, str]]:
+    """Run every scenario exactly once; return (name, outcome, expected)."""
+    return [
+        (name, LeadQualifier(_backend_for(name)).run(contact, text), expected)
+        for name, contact, text, expected in SCENARIOS
+    ]
+
+
 def verify_sandbox() -> list[str]:
     """Run the 10 adversarial scenarios; return the list of failures (empty = pass)."""
     failures: list[str] = []
-    for name, contact, text, expected in SCENARIOS:
-        outcome = LeadQualifier(_backend_for(name)).run(contact, text)
+    for name, outcome, expected in run_scenarios():
         if outcome.readiness != expected:
             failures.append(
                 f"{name}: expected {expected}, got {outcome.readiness} "
@@ -259,10 +266,12 @@ def verify_sandbox() -> list[str]:
 
 
 def _cmd_verify() -> int:
-    failures = verify_sandbox()
-    for name, contact, text, expected in SCENARIOS:
-        outcome = LeadQualifier(_backend_for(name)).run(contact, text)
+    results = run_scenarios()
+    failures: list[str] = []
+    for name, outcome, expected in results:
         mark = "PASS" if outcome.readiness == expected else "FAIL"
+        if mark == "FAIL":
+            failures.append(f"{name}: expected {expected}, got {outcome.readiness}")
         print(f"  [{mark}] {name:24s} → {outcome.readiness:10s} "
               f"intent={outcome.intent} err={outcome.error or '-'}")
     if failures:

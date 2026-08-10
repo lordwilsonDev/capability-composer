@@ -24,15 +24,29 @@ from registry import registry_tool
 
 ROOT = Path(__file__).resolve().parent.parent
 REQUIREMENT = "create a ghl lead qualification agent"
-SEEDED_IDS = [cap["id"] for cap in registry_tool.load_registry()["capabilities"]]
+
+
+def _pristine_seed() -> list[dict]:
+    """The primitives-only seed, derived programmatically so a local §21 demo
+    run (which registers the skill into the working registry) can never flip
+    these tests: skill entries are stripped regardless of ambient state."""
+    return [
+        cap for cap in registry_tool.load_registry(
+            ROOT / "registry" / "registry.json"
+        )["capabilities"]
+        if cap.get("kind") != "skill"
+    ]
+
+
+SEEDED_IDS = [cap["id"] for cap in _pristine_seed()]
 
 
 @pytest.fixture()
 def tmp_registry(tmp_path, monkeypatch):
     """A scratch registry seeded with the repo's primitives (never the skill)."""
     reg = tmp_path / "registry.json"
-    reg.write_text((ROOT / "registry" / "registry.json").read_text(encoding="utf-8"),
-                   encoding="utf-8")
+    seed = {"schema_version": "1.0", "capabilities": _pristine_seed()}
+    reg.write_text(json.dumps(seed, indent=2) + "\n", encoding="utf-8")
     # redirect the composer's lookups/registration onto the scratch registry
     monkeypatch.setattr(composer, "find_for",
                         lambda req: registry_tool.find_for(req, reg))
@@ -82,10 +96,10 @@ def test_registration_is_idempotent(tmp_registry):
 def test_gap_aborts_with_law3_report(tmp_path, monkeypatch, capsys):
     """A missing primitive proves the gap and stops before composition."""
     reg = tmp_path / "registry.json"
-    seed = registry_tool.load_registry(ROOT / "registry" / "registry.json")
-    seed["capabilities"] = [c for c in seed["capabilities"]
-                            if c["id"] != "llm.qualify"]
-    reg.write_text(json.dumps(seed), encoding="utf-8")
+    seed = {"schema_version": "1.0",
+            "capabilities": [c for c in _pristine_seed()
+                              if c["id"] != "llm.qualify"]}
+    reg.write_text(json.dumps(seed, indent=2) + "\n", encoding="utf-8")
     monkeypatch.setattr(composer, "find_for",
                         lambda req: registry_tool.find_for(req, reg))
     monkeypatch.setattr(composer, "register_capability",

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pytest
 
+from primitives.ghl.ghl_client import _version_for
 from skills.gohighlevel_lead_qualifier.qualifier import (
     SCENARIOS,
     LeadQualifier,
@@ -95,3 +96,41 @@ def test_crm_tag_records_outcome():
     updated = backend.get_contact("c_grace")
     assert "nurture" in updated["tags"]
     assert updated["customFields"].get("qualifier_outcome") == "nurture"
+
+
+def test_quarantine_and_escalate_never_book():
+    """Spam/escalation paths may only touch the CRM — never appointment.create."""
+    for name in ("fake", "spam", "angry"):
+        outcome = LeadQualifier(_backend_for(name)).run(
+            {"id": "c_grace", "firstName": "Grace", "email": "grace@example.com"},
+            SCENARIOS[[s[0] for s in SCENARIOS].index(name)][2],
+        )
+        ops = {call["op"] for call in outcome.calls}
+        assert "appointments.create" not in ops, f"{name}: quarantined lead was booked"
+        assert outcome.appointment_id is None, name
+
+
+def test_degraded_path_never_records_successful_booking():
+    """The permission log records EFFECTS, not attempts: a failed booking is
+    never logged as an appointment.create (the failure checks run before the
+    call is appended), so a degraded run can never look like a success."""
+    for name in ("api_failure", "calendar_unavailable"):
+        outcome = LeadQualifier(_backend_for(name)).run(
+            {"id": "c_ada", "firstName": "Ada", "email": "ada@example.com"},
+            SCENARIOS[[s[0] for s in SCENARIOS].index(name)][2],
+        )
+        ops = {call["op"] for call in outcome.calls}
+        assert "appointments.create" not in ops, name
+        assert outcome.appointment_id is None, name
+
+
+def test_live_version_headers_match_documented_endpoints():
+    """Pin the per-endpoint Version header mapping (reviewer finding: the
+    /contacts/ prefix used to swallow /contacts/search and send v3New instead
+    of the documented v3). Most-specific prefixes must win."""
+    assert _version_for("/contacts/search") == "v3"
+    assert _version_for("/contacts/") == "v3New"
+    assert _version_for("/contacts/c_001") == "v3New"
+    assert _version_for("/calendars/events/appointments") == "v3"
+    assert _version_for("/calendars/events/appointments/a_001") == "v3"
+    assert _version_for("/calendars/cal-1") == "v3"  # default for unmapped paths

@@ -40,10 +40,9 @@ from typing import Any, Optional
 BASE_URL = "https://services.leadconnectorhq.com"
 
 VERSION_BY_PATH: dict[str, str] = {
-    "/contacts/": "v3New",
-    "/contacts/search": "v3",
+    "/contacts/search": "v3",  # most specific first — "/contacts/search" must
+    "/contacts/": "v3New",     # NOT be swallowed by the "/contacts/" prefix
     "/calendars/events/appointments": "v3",
-    "/calendars/events/appointments/": "v3",
 }
 
 
@@ -52,7 +51,10 @@ class GhlError(Exception):
 
 
 def _version_for(path: str) -> str:
-    for prefix, v in VERSION_BY_PATH.items():
+    # Match most-specific prefixes first (longest key), so the documented
+    # per-endpoint Version headers (v3 / v3New) are never misassigned.
+    for prefix, v in sorted(VERSION_BY_PATH.items(),
+                            key=lambda kv: len(kv[0]), reverse=True):
         if path.startswith(prefix):
             return v
     return "v3"
