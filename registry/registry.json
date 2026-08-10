@@ -132,6 +132,140 @@
       "composable": true
     },
     {
+      "id": "hubspot.contact.read",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "HubSpot",
+        "path": "primitives/hubspot"
+      },
+      "interface": {
+        "input": {
+          "query": "string"
+        },
+        "output": [
+          "contact_id",
+          "firstname",
+          "lastname",
+          "email",
+          "phone",
+          "tags"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "crm.contacts.read"
+        ]
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures (primitives/hubspot/test_hubspot_client.py)"
+      },
+      "composable": true
+    },
+    {
+      "id": "hubspot.contact.write",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "HubSpot",
+        "path": "primitives/hubspot"
+      },
+      "interface": {
+        "input": {
+          "contact_id": "string",
+          "firstname": "string",
+          "email": "string",
+          "phone": "string"
+        },
+        "output": [
+          "contact_id",
+          "tags"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "crm.contacts.write"
+        ]
+      },
+      "risk": "medium",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures + failure injection (duplicate, outage, rate limit)"
+      },
+      "composable": true
+    },
+    {
+      "id": "hubspot.deal.read",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "HubSpot",
+        "path": "primitives/hubspot"
+      },
+      "interface": {
+        "input": {
+          "contact_id": "string"
+        },
+        "output": [
+          "deal_id",
+          "dealname",
+          "amount",
+          "pipeline",
+          "dealstage",
+          "status"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "crm.deals.read"
+        ]
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures"
+      },
+      "composable": true
+    },
+    {
+      "id": "hubspot.deal.write",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "HubSpot",
+        "path": "primitives/hubspot"
+      },
+      "interface": {
+        "input": {
+          "deal_id": "string",
+          "dealname": "string",
+          "amount": "number",
+          "pipeline": "string",
+          "dealstage": "string"
+        },
+        "output": [
+          "deal_id",
+          "amount",
+          "dealstage",
+          "status"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "crm.deals.read",
+          "crm.deals.write"
+        ]
+      },
+      "risk": "medium",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures + failure injection"
+      },
+      "composable": true
+    },
+    {
       "id": "llm.intent",
       "kind": "primitive",
       "provider": {

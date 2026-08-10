@@ -31,6 +31,7 @@ sub-account before trusting them.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import urllib.error
@@ -95,7 +96,11 @@ class SandboxBackend:
     email and raise GhlError (the composition decides how to handle it)."""
 
     def __init__(self, *, failures: tuple[str, ...] = ()):
-        self._contacts: dict[str, dict[str, Any]] = {c["id"]: dict(c) for c in _FIXTURE_CONTACTS}
+        # DEEP copies — a test mutating one backend's nested customFields/tags
+        # must never leak into the module-level fixtures or another backend.
+        self._contacts: dict[str, dict[str, Any]] = {
+            c["id"]: copy.deepcopy(c) for c in _FIXTURE_CONTACTS
+        }
         self._calendars: list[dict[str, Any]] = [
             {"id": "cal-sales", "name": "Sales Discovery", "locationId": "loc-demo"},
             {"id": "cal-onboard", "name": "Onboarding", "locationId": "loc-demo"},
@@ -109,12 +114,16 @@ class SandboxBackend:
     def search_contacts(self, query: str = "", location_id: str = "loc-demo",
                         limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
         self.calls.append({"op": "contacts.search", "args": {"query": query}})
-        hay = " ".join(
-            f"{c.get('firstName','')} {c.get('lastName','')} {c.get('email','')} {c.get('phone','')}"
-            for c in self._contacts.values()
-        ).lower()
         q = query.lower()
-        matches = [dict(c) for c in self._contacts.values() if not q or q in hay]
+        # per-contact substring match — a term in one contact's text does NOT
+        # return every other contact
+        matches = [
+            dict(c) for c in self._contacts.values()
+            if not q or q in (
+                f"{c.get('firstName','')} {c.get('lastName','')} "
+                f"{c.get('email','')} {c.get('phone','')}"
+            ).lower()
+        ]
         return matches[offset:offset + limit]
 
     def get_contact(self, contact_id: str) -> dict[str, Any]:

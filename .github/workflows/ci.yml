@@ -18,25 +18,45 @@ jobs:
       - name: deps
         run: pip install --quiet pytest ruff
 
-      - name: tests (23 — sandbox scenarios + reuse + reviewer pins)
-        run: python -m pytest tests/ -q
+      - name: tests (57 — 2 connectors + 2 pipelines + reuse)
+        run: python -m pytest tests/ primitives/ registry/ -q
 
       - name: ruff (E9,F,I)
         run: python -m ruff check --select E9,F,I composer.py registry/ primitives/ skills/ tests/
 
-      - name: sandbox verify — 10 adversarial scenarios, zero spend
+      - name: sandbox verify — GHL qualifier (10 scenarios, zero spend)
         run: python skills/gohighlevel_lead_qualifier/qualifier.py
 
-      - name: composer loop — run #1 composes + registers (status VERIFIED)
+      - name: sandbox verify — HubSpot pipeline (9 scenarios, zero spend)
+        run: python skills/hubspot_deal_pipeline/pipeline.py
+
+      - name: composer loop — GHL run #1 composes + registers
         run: |
           OUT=$(python composer.py run "create a ghl lead qualification agent")
           echo "$OUT"
           echo "$OUT" | grep -q "\[7/7\] register"
           echo "$OUT" | grep -q "status=VERIFIED"
 
-      - name: composer loop — run #2 must REUSE, never rebuild (Law 1)
+      - name: composer loop — GHL run #2 must REUSE, never rebuild
         run: |
           OUT=$(python composer.py run "create a ghl lead qualification agent")
+          echo "$OUT"
+          echo "$OUT" | grep -q "REUSE (Law 1)"
+          if echo "$OUT" | grep -q "\[7/7\]"; then
+            echo "FAIL: second request re-ran the build path"
+            exit 1
+          fi
+
+      - name: composer loop — HubSpot run #1 composes + registers
+        run: |
+          OUT=$(python composer.py run "create a hubspot deal pipeline agent")
+          echo "$OUT"
+          echo "$OUT" | grep -q "\[7/7\] register"
+          echo "$OUT" | grep -q "status=VERIFIED"
+
+      - name: composer loop — HubSpot run #2 must REUSE, never rebuild
+        run: |
+          OUT=$(python composer.py run "create a hubspot deal pipeline agent")
           echo "$OUT"
           echo "$OUT" | grep -q "REUSE (Law 1)"
           if echo "$OUT" | grep -q "\[7/7\]"; then

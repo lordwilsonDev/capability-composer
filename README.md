@@ -22,33 +22,42 @@ already exists, compose it. If it doesn't, create only the missing primitive.
 5. **Every discovery becomes knowledge** — the promoted skill is registered
    (status `VERIFIED`); the identical request is then served by the catalog.
 
-## The §21 demo (one command)
+## The §21 demo (one command, two providers)
 
 ```bash
 # first request — compose + verify + register (zero spend, no network)
 python composer.py run "create a ghl lead qualification agent"
+python composer.py run "create a hubspot deal pipeline agent"
 
-# second request — the compounding primitive: REUSE, no rebuild
+# second requests — the compounding primitive: REUSE, no rebuild
 python composer.py run "create a ghl lead qualification agent"
+python composer.py run "create a hubspot deal pipeline agent"
 ```
 
 ## Layout
 
 | path | what |
 |---|---|
-| `composer.py` | the §21 loop (CLI) |
+| `composer.py` | the §21 loop (CLI) — one DECOMPOSER spec + one sandbox verifier per capability |
 | `registry/` | the §6 capability registry + `registry_tool.py` (anti-reinvention lookup) |
 | `primitives/ghl/` | the GHL connector — `SandboxBackend` (verified) + `LiveBackend` (opt-in, `GHL_API_KEY`) |
-| `skills/gohighlevel_lead_qualifier/` | the composed skill — `qualifier.py` (workflow) + `SKILL.md` (§14 shape) |
-| `tests/` | §11 adversarial sandbox scenarios + the fundamental-primitive reuse test |
+| `primitives/hubspot/` | the HubSpot CRM connector — same contract, `HUBSPOT_API_KEY` live |
+| `primitives/stub_model/` | the SHARED model primitive (`llm.intent` + `llm.qualify`) both skills depend on — the graph's shared node |
+| `skills/gohighlevel_lead_qualifier/` | composed skill #1 — `qualifier.py` + `SKILL.md` |
+| `skills/hubspot_deal_pipeline/` | composed skill #2 — `pipeline.py` + `SKILL.md` |
+| `tests/` | §11 adversarial sandbox scenarios + the fundamental-primitive reuse test, parametrized over BOTH capabilities |
 
 ## Honesty notes
 
-- The sandbox is the verified path. The live GHL backend is grounded in the
-  documented v1 API surface (`services.leadconnectorhq.com`, Bearer key,
-  `Version` header) but must be verified against a real sub-account with
-  `GHL_API_KEY` before trust.
-- The model is a deterministic keyword BANT scorer (zero-spend). Replacing it
-  with a real model is a provider change, not a contract change.
-- `registry.json` is committed **pristine** (primitives only): CI's first run
-  exercises the full compose→verify→register path, the second run proves REUSE.
+- The sandbox is the verified path. The live backends are grounded in the
+  documented API surfaces (GHL v1: `services.leadconnectorhq.com`, Bearer key,
+  `Version` header; HubSpot v3: `api.hubapi.com`, Bearer PAT, version in path)
+  but must be verified against a real account with `GHL_API_KEY` /
+  `HUBSPOT_API_KEY` before trust.
+- The model is a deterministic keyword BANT scorer (zero-spend), shared by
+  both skills as the `llm.intent` / `llm.qualify` primitives. Replacing it
+  with a real model is a provider change, not a contract change — no skill
+  changes.
+- `registry.json` is committed **pristine** (primitives only): CI's first runs
+  exercise the full compose→verify→register path for both capabilities, the
+  second runs prove REUSE for both.

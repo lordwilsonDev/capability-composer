@@ -26,15 +26,18 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from registry.registry_tool import (  # type: ignore[import-not-found]
     find_for,
     load_registry,
     register_capability,
 )
-from skills.gohighlevel_lead_qualifier.qualifier import (
-    verify_sandbox,  # type: ignore[import-not-found]
+from skills.gohighlevel_lead_qualifier.qualifier import (  # type: ignore[import-not-found]
+    verify_sandbox as verify_ghl_qualifier,
+)
+from skills.hubspot_deal_pipeline.pipeline import (  # type: ignore[import-not-found]
+    verify_sandbox as verify_hubspot_pipeline,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -64,7 +67,34 @@ DECOMPOSERS: list[dict[str, Any]] = [
             "ghl.appointment.write", "llm.intent", "llm.qualify",
         ],
     },
+    {
+        "name": "hubspot-deal-pipeline",
+        "keywords": ["hubspot", "deal"],
+        "skill_id": "skill:hubspot-deal-pipeline",
+        "skill_name": "hubspot-deal-pipeline",
+        "version": "1.0",
+        "purpose": "Track and update the HubSpot deal pipeline from inbound signals — match contacts, score deal fit, create or advance open deals.",
+        "path": "skills/hubspot_deal_pipeline",
+        "inputs": ["contact", "conversation"],
+        "dependencies": ["HubSpot", "local_model"],
+        "permissions": {"requires": ["crm.contacts.read", "crm.contacts.write", "crm.deals.read", "crm.deals.write"]},
+        "workflow": ["detect_deal_signal", "match_contact", "assess_deal", "create_or_update_deal", "update_crm"],
+        "verification": ["sandbox scenarios", "adversarial inputs", "permission log"],
+        "needs": [
+            "hubspot.contact.read", "hubspot.contact.write", "hubspot.deal.read",
+            "hubspot.deal.write", "llm.intent", "llm.qualify",
+        ],
+    },
 ]
+
+
+# Each composed skill brings its own sandbox verification (blueprint §12); the
+# loop dispatches to the verifier of the skill being composed. A missing entry
+# fails the gate — no skill is promoted without its own scenarios passing.
+VERIFIERS: dict[str, Callable[[], list[str]]] = {
+    "gohighlevel-lead-qualifier": verify_ghl_qualifier,
+    "hubspot-deal-pipeline": verify_hubspot_pipeline,
+}
 
 
 def decompose(requirement: str) -> Optional[dict[str, Any]]:
@@ -149,8 +179,13 @@ def run(requirement: str) -> int:
         return 1
 
     # 6. VERIFY BEFORE PROMOTE.
-    print("[6/7] verify: running the sandbox scenarios (zero spend)...")
-    failures = verify_sandbox()
+    verifier = VERIFIERS.get(spec["skill_name"])
+    if verifier is None:
+        print("[6/7] GATE FAILED: no sandbox verifier registered for "
+              f"{spec['skill_name']} — cannot promote (Law 4).")
+        return 1
+    print(f"[6/7] verify: running {spec['skill_name']}'s sandbox scenarios (zero spend)...")
+    failures = verifier()
     if failures:
         print(f"        ✗ {len(failures)} scenario(s) failed — NOT registered (Law 4):")
         for f in failures:
