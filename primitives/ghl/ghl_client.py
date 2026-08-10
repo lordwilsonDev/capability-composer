@@ -201,6 +201,14 @@ class SandboxBackend:
             c["customFields"].update(payload["customFields"])
         return dict(c)
 
+    def delete_contact(self, contact_id: str) -> dict[str, Any]:
+        """Delete a contact (the write-probe round trip's cleanup leg)."""
+        self._check_write()
+        self.calls.append({"op": "contacts.delete", "args": {"contact_id": contact_id}})
+        if contact_id not in self._contacts:
+            raise GhlError(f"contact {contact_id} not found")
+        return self._contacts.pop(contact_id)
+
     def book_appointment(self, payload: dict[str, Any]) -> dict[str, Any]:
         self._check_write()
         if "calendar_unavailable" in self._failures:
@@ -273,6 +281,11 @@ class LiveBackend:
     def update_contact(self, contact_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self._request("PUT", f"/contacts/{contact_id}", payload)
         return data.get("contact", data)
+
+    def delete_contact(self, contact_id: str) -> dict[str, Any]:
+        data = self._request("DELETE", f"/contacts/{contact_id}")
+        return data if isinstance(data, dict) else {}
+
 
     def list_calendars(self, location_id: str = "loc-demo") -> list[dict[str, Any]]:
         # documented as calendar retrieval by id; listing by locationId is the

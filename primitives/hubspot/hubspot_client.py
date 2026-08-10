@@ -190,6 +190,14 @@ class SandboxBackend:
             c["tags"] = sorted({*c["tags"], *payload["tags"]})
         return dict(c)
 
+    def delete_contact(self, contact_id: str) -> dict[str, Any]:
+        """Delete a contact (the write-probe round trip's cleanup leg)."""
+        self._check_write()
+        self.calls.append({"op": "contacts.delete", "args": {"contact_id": contact_id}})
+        if contact_id not in self._contacts:
+            raise HubspotError(f"contact {contact_id} not found")
+        return self._contacts.pop(contact_id)
+
     def create_deal(self, payload: dict[str, Any]) -> dict[str, Any]:
         self._check_write()
         self.calls.append({"op": "deals.create", "args": {
@@ -277,6 +285,9 @@ class LiveBackend:
                  if k in ("firstname", "lastname", "email", "phone")}
         return self._request("PATCH", f"/crm/v3/objects/contacts/{contact_id}",
                              {"properties": props})
+
+    def delete_contact(self, contact_id: str) -> dict[str, Any]:
+        return self._request("DELETE", f"/crm/v3/objects/contacts/{contact_id}")
 
     def search_deals(self, contact_id: str = "", limit: int = 20) -> list[dict[str, Any]]:
         payload = {"limit": limit}

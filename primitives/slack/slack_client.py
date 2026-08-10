@@ -154,6 +154,21 @@ class SandboxBackend:
 
     # --- writes ---
 
+    def delete_message(self, channel_id: str, ts: str) -> dict[str, Any]:
+        """Delete a message the bot posted (the write-probe round trip's
+        cleanup leg — chat.delete only works for the bot's own messages)."""
+        self._check_write()
+        self.calls.append({"op": "chat.delete", "args": {"channel_id": channel_id}})
+        if channel_id not in self._channels:
+            raise SlackError(f"channel {channel_id} not found")
+        history = self._messages.get(channel_id, [])
+        for i, msg in enumerate(history):
+            if msg.get("ts") == ts:
+                if msg.get("user") != "U_BOT":
+                    raise SlackError("cannot_delete_message: only the bot's own messages")
+                return history.pop(i)
+        raise SlackError(f"message {ts} not found in {channel_id}")
+
     def post_message(self, channel_id: str, text: str,
                      thread_ts: Optional[str] = None) -> dict[str, Any]:
         self._check_write()
@@ -254,6 +269,10 @@ class LiveBackend:
         if thread_ts:
             body["thread_ts"] = thread_ts
         return self._request("POST", "/api/chat.postMessage", body=body)
+
+    def delete_message(self, channel_id: str, ts: str) -> dict[str, Any]:
+        return self._request("POST", "/api/chat.delete",
+                             {"channel": channel_id, "ts": ts})
 
 
 # ---------------------------------------------------------------------------

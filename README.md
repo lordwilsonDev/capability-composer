@@ -70,11 +70,17 @@ Slack `GET /api/conversations.list` — list, never write), then writes a
 `evidence/live/` (content-addressed `artifact_hash`, polarity SUPPORTING /
 CONTRADICTING, full provenance layers). Safety invariants: no key → SKIP
 (exit 0, inert, no evidence); keyed provider fails → CONTRADICTING evidence +
-exit 1 (fail loud); `--dry-run` shows what would be probed with no network;
-write verification is deliberately out of scope (a real write belongs on a
-dedicated sandbox account, manually audited). Never wired into CI — CI stays
-zero-spend. `evidence/` is gitignored; commit a run explicitly for a durable
-record.
+exit 1 (fail loud); `--dry-run` shows what would be probed with no network.
+
+Write verification is a **separate, structurally safer path**:
+`scripts/write_probe.py` runs create → read-verify → delete → verify-gone on a
+**dedicated sandbox account only** — it reads `*_SANDBOX_API_KEY` env vars,
+never the production keys, and refuses (exit 2) if a production key is set
+without the matching sandbox key, so production credentials physically cannot
+be used. Any leg failure emits CONTRADICTING evidence + exit 1 (a leave-behind
+is an incident, not a pass); evidence lands in `evidence/write/`. Never wired
+into CI — CI stays zero-spend. `evidence/` is gitignored; commit a run
+explicitly for a durable record.
 
 ## Honesty notes
 
