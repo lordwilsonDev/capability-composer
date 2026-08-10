@@ -27,8 +27,8 @@ Grounded endpoint surface (HubSpot CRM v3 objects API):
 
 LIVE-MODE HONESTY: the sandbox is the verified path. The live paths are
 grounded in the documented v3 shapes but require a real token — run
-`python hubspot_client.py test` once HUBSPOT_API_KEY is set to verify against
-your portal before trusting them.
+`scripts/live_probe.py --providers hubspot` once HUBSPOT_API_KEY is set: it
+makes ONE read-only call against your portal and writes ledger evidence.
 """
 
 from __future__ import annotations

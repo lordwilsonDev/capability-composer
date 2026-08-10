@@ -50,17 +50,37 @@ python composer.py run "route qualified ghl leads into hubspot deals"
 | `skills/ghl_hubspot_router/` | composed skill #3 — `router.py` + `SKILL.md`: **cross-connector** — routes skill #1's qualified leads into HubSpot deals (multi-provider edges, input = skill #1's output) |
 | `tests/` | §11 adversarial sandbox scenarios + the fundamental-primitive reuse test, parametrized over ALL THREE capabilities |
 
+## Live verification (opt-in, never in CI)
+
+The sandbox is the verified path; the live API surface is only trusted after
+`scripts/live_probe.py` proves it once, explicitly:
+
+```bash
+GHL_API_KEY=... HUBSPOT_API_KEY=... python scripts/live_probe.py
+```
+
+What it does, honestly: **one READ-ONLY call per provider that has a key**
+(GHL `POST /contacts/search`, HubSpot `POST /crm/v3/objects/contacts/search`
+— list, never write), then writes a §8-shaped ledger evidence artifact to
+`evidence/live/` (content-addressed `artifact_hash`, polarity SUPPORTING /
+CONTRADICTING, full provenance layers). Safety invariants: no key → SKIP
+(exit 0, inert, no evidence); keyed provider fails → CONTRADICTING evidence +
+exit 1 (fail loud); `--dry-run` shows what would be probed with no network;
+write verification is deliberately out of scope (a real write belongs on a
+dedicated sandbox account, manually audited). Never wired into CI — CI stays
+zero-spend. `evidence/` is gitignored; commit a run explicitly for a durable
+record.
+
 ## Honesty notes
 
-- The sandbox is the verified path. The live backends are grounded in the
-  documented API surfaces (GHL v1: `services.leadconnectorhq.com`, Bearer key,
-  `Version` header; HubSpot v3: `api.hubapi.com`, Bearer PAT, version in path)
-  but must be verified against a real account with `GHL_API_KEY` /
-  `HUBSPOT_API_KEY` before trust.
+- The live backends are grounded in the documented API surfaces (GHL v1:
+  `services.leadconnectorhq.com`, Bearer key, `Version` header; HubSpot v3:
+  `api.hubapi.com`, Bearer PAT, version in path) — verified by the probe
+  above, never assumed.
 - The model is a deterministic keyword BANT scorer (zero-spend), shared by
-  both skills as the `llm.intent` / `llm.qualify` primitives. Replacing it
-  with a real model is a provider change, not a contract change — no skill
+  all three skills as the `llm.intent` / `llm.qualify` primitives. Replacing
+  it with a real model is a provider change, not a contract change — no skill
   changes.
 - `registry.json` is committed **pristine** (primitives only): CI's first runs
-  exercise the full compose→verify→register path for both capabilities, the
-  second runs prove REUSE for both.
+  exercise the full compose→verify→register path for all three capabilities,
+  the second runs prove REUSE for all three.

@@ -25,8 +25,8 @@ Grounded endpoint surface (from the GHL v1 public API docs):
 
 LIVE-MODE HONESTY: the sandbox is the verified path. The live paths are
 grounded in the documented shapes but require a real key — run
-`python ghl_client.py test` once GHL_API_KEY is set to verify against your
-sub-account before trusting them.
+`scripts/live_probe.py --providers ghl` once GHL_API_KEY is set: it makes ONE
+read-only call against your sub-account and writes ledger evidence.
 """
 
 from __future__ import annotations
