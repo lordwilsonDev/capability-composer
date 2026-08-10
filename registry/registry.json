@@ -1,0 +1,191 @@
+{
+  "schema_version": "1.0",
+  "capabilities": [
+    {
+      "id": "ghl.appointment.write",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "GoHighLevel",
+        "path": "primitives/ghl"
+      },
+      "interface": {
+        "input": {
+          "calendar_id": "string",
+          "contact_id": "string",
+          "start_time": "datetime",
+          "title": "string"
+        },
+        "output": [
+          "appointment_id",
+          "appointmentStatus"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "calendar.read",
+          "appointment.create"
+        ]
+      },
+      "risk": "medium",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures + calendar-unavailable injection"
+      },
+      "composable": true
+    },
+    {
+      "id": "ghl.calendar.read",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "GoHighLevel",
+        "path": "primitives/ghl"
+      },
+      "interface": {
+        "input": {
+          "location_id": "string"
+        },
+        "output": [
+          "calendar_id",
+          "name"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "calendar.read"
+        ]
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures"
+      },
+      "composable": true
+    },
+    {
+      "id": "ghl.contact.read",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "GoHighLevel",
+        "path": "primitives/ghl"
+      },
+      "interface": {
+        "input": {
+          "location_id": "string",
+          "query": "string"
+        },
+        "output": [
+          "contact_id",
+          "firstName",
+          "lastName",
+          "email",
+          "phone",
+          "tags",
+          "customFields"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "contact.read"
+        ]
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures (primitives/ghl/test_ghl_client.py)"
+      },
+      "composable": true
+    },
+    {
+      "id": "ghl.contact.write",
+      "kind": "primitive",
+      "provider": {
+        "type": "connector",
+        "name": "GoHighLevel",
+        "path": "primitives/ghl"
+      },
+      "interface": {
+        "input": {
+          "contact_id": "string",
+          "firstName": "string",
+          "email": "string",
+          "phone": "string"
+        },
+        "output": [
+          "contact_id",
+          "tags",
+          "customFields"
+        ]
+      },
+      "permissions": {
+        "requires": [
+          "contact.write"
+        ]
+      },
+      "risk": "medium",
+      "verification": {
+        "required": true,
+        "proven_by": "sandbox fixtures + failure injection (duplicate, outage)"
+      },
+      "composable": true
+    },
+    {
+      "id": "llm.intent",
+      "kind": "primitive",
+      "provider": {
+        "type": "model",
+        "name": "local-model (stub in sandbox, msb-v3 LocalAIClient live)"
+      },
+      "interface": {
+        "input": {
+          "text": "string"
+        },
+        "output": [
+          "intent",
+          "confidence"
+        ]
+      },
+      "permissions": {
+        "requires": []
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "deterministic stub fixtures"
+      },
+      "composable": true
+    },
+    {
+      "id": "llm.qualify",
+      "kind": "primitive",
+      "provider": {
+        "type": "model",
+        "name": "local-model (stub in sandbox)"
+      },
+      "interface": {
+        "input": {
+          "contact": "object",
+          "conversation": "string"
+        },
+        "output": [
+          "qualified",
+          "budget",
+          "authority",
+          "need",
+          "timeline"
+        ]
+      },
+      "permissions": {
+        "requires": []
+      },
+      "risk": "low",
+      "verification": {
+        "required": true,
+        "proven_by": "deterministic stub fixtures"
+      },
+      "composable": true
+    }
+  ]
+}
