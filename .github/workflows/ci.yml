@@ -18,7 +18,7 @@ jobs:
       - name: deps
         run: pip install --quiet pytest ruff
 
-      - name: tests (20 — sandbox scenarios + reuse)
+      - name: tests (23 — sandbox scenarios + reuse + reviewer pins)
         run: python -m pytest tests/ -q
 
       - name: ruff (E9,F,I)
