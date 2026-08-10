@@ -18,7 +18,7 @@ jobs:
       - name: deps
         run: pip install --quiet pytest ruff
 
-      - name: tests (57 — 2 connectors + 2 pipelines + reuse)
+      - name: tests (59 — 2 connectors + 2 pipelines + reuse)
         run: python -m pytest tests/ primitives/ registry/ -q
 
       - name: ruff (E9,F,I)
@@ -27,7 +27,7 @@ jobs:
       - name: sandbox verify — GHL qualifier (10 scenarios, zero spend)
         run: python skills/gohighlevel_lead_qualifier/qualifier.py
 
-      - name: sandbox verify — HubSpot pipeline (9 scenarios, zero spend)
+      - name: sandbox verify — HubSpot pipeline (10 scenarios, zero spend)
         run: python skills/hubspot_deal_pipeline/pipeline.py
 
       - name: composer loop — GHL run #1 composes + registers
